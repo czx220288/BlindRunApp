@@ -1,46 +1,144 @@
 # BlindRunApp（助盲跑系统）
 
-## 📌 项目简介
-BlindRunApp 是一个基于 Android 的助盲跑步辅助系统。
-盲人用户可以发布跑步陪同需求，系统会根据距离和可用性匹配志愿者进行实时协助。
+## 📌 Project Introduction
+
+BlindRunApp is an Android-based accessibility running assistance platform designed for visually impaired users.
+
+Blind users can publish running companion requests, while volunteers can accept nearby tasks and provide real-time assistance during outdoor running activities.
+
+This project focuses on accessibility, real-time collaboration, and safety.
 
 ---
 
-## 🚀 核心功能
-- 👤 用户注册 / 登录（盲人 / 志愿者）
-- 🏃‍♂️ 跑步陪同需求发布
-- 📍 基于距离的志愿者匹配
-- 🗺 实时位置共享（开发中）
-- 📊 匹配优先级算法（距离优先）
+## 🚀 MVP Features
+
+* 👤 User Login / Registration
+* 🏃 Running Companion Recruitment
+* 📍 Nearby Recruitment List
+* 🤝 Volunteer Matching System
+* 🗺 Real-time Location Sharing
+* 🔊 TTS Voice Accessibility
+* 🚨 SOS Emergency Assistance
 
 ---
 
-## 🧠 技术栈
-- Android (MVVM 架构)
-- Kotlin
-- Retrofit（网络请求）
-- Git + GitHub（版本控制）
+## 🧠 Tech Stack
+
+### Android
+
+* Kotlin
+* Jetpack Compose
+* MVVM Architecture
+* Hilt (Dependency Injection)
+
+### Network
+
+* Retrofit
+* OkHttp
+* WebSocket
+
+### Location & Accessibility
+
+* GPS / AMap SDK
+* Android TextToSpeech (TTS)
+
+### Tools
+
+* Git + GitHub
+* Android Studio
 
 ---
 
-## 📂 项目结构
-- ui/：界面层
-- viewmodel/：逻辑控制层
-- repository/：数据管理层
-- network/：网络请求层
-- utils/：工具类（距离计算等）
+## 🏗 Architecture
+
+The project follows the MVVM architecture pattern:
+
+```text
+UI → ViewModel → Repository → API/DataSource
+```
+
+### Project Structure
+
+```text
+com.blindrun.app
+│
+├── core
+├── data
+├── feature
+├── ui
+├── di
+```
+
+### Structure Description
+
+* `core/` → network, websocket, location, tts
+* `data/` → api, model, repository
+* `feature/` → business modules
+* `ui/` → navigation and theme
+* `di/` → Hilt dependency injection
 
 ---
 
-## 📈 当前进度
-✔ 项目架构已完成  
-✔ Git 初始化完成  
-✔ GitHub 仓库建立  
-🚧 功能开发中（登录 / 匹配系统）
+## 📂 Feature Modules
+
+### Recruit Module
+
+Blind users can publish running requests.
+
+### Nearby Module
+
+Volunteers can browse nearby recruitment tasks.
+
+### Run Module
+
+Supports real-time location synchronization.
+
+### SOS Module
+
+Emergency assistance and location upload.
 
 ---
 
-## 🔥 下一步开发
-- 登录注册系统
-- 距离匹配算法
-- 实时定位功能
+## 📈 Current Progress
+
+### ✅ Completed
+
+* Android project initialization
+* Git & GitHub setup
+* MVVM architecture design
+* Project module structure
+* Gradle & dependency configuration
+
+### 🚧 In Development
+
+* Login System
+* Recruit Publishing
+* Nearby Matching
+* WebSocket Location Sync
+
+---
+
+## 🔥 Next Development Plan
+
+* Real-time map synchronization
+* Distance matching algorithm
+* Accessibility optimization
+* Running state management
+* Voice interaction support
+
+---
+
+## 👨‍💻 Development Environment
+
+| Tool           | Version |
+| -------------- | ------- |
+| Android Studio | Latest  |
+| Kotlin         | 2.x     |
+| Min SDK        | API 26  |
+| Target SDK     | Latest  |
+
+---
+
+## 📜 License
+
+This project is currently for educational and research purposes.

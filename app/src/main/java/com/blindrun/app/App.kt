@@ -1,4 +1,4 @@
 package com.blindrun.app
 
-class MainActivity {
+class App {
 }
