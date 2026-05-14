@@ -1,27 +1,23 @@
 package com.blindrun.app.data.db.dao
 
-import androidx.room.*
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
 import com.blindrun.app.data.db.entity.UserEntity
 
 @Dao
 interface UserDao {
 
-    @Query("SELECT * FROM users")
-    suspend fun getAllUsers(): List<UserEntity>
-
+    // 注册（插入用户）
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertUser(user: UserEntity)
+    suspend fun register(user: UserEntity)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertUsers(users: List<UserEntity>)
+    // 登录查询
+    @Query("SELECT * FROM user WHERE username = :username AND password = :password LIMIT 1")
+    suspend fun login(username: String, password: String): UserEntity?
 
-    @Delete
-    suspend fun deleteUser(user: UserEntity)
+    // 用户是否存在
+    @Query("SELECT * FROM user WHERE username = :username LIMIT 1")
+    suspend fun getUserByUsername(username: String): UserEntity?
 }
-
-@Database(
-    entities = [UserEntity::class],
-    version = 1,
-    exportSchema = false   // ⭐关键
-)
-abstract class AppDatabase : RoomDatabase()

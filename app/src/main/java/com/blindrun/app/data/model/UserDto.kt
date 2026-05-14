@@ -1,17 +1,10 @@
 package com.blindrun.app.data.model
 
-import com.blindrun.app.data.db.entity.UserEntity
-
+/**
+ * 网络/业务层数据模型（DTO）
+ * 用于登录/注册请求或界面传输
+ */
 data class UserDto(
-    val id: Int,
-    val name: String,
-    val email: String
+    val username: String,
+    val password: String
 )
-
-fun UserDto.toEntity(): UserEntity {
-    return UserEntity(
-        id = id,
-        name = name,
-        email = email
-    )
-}
