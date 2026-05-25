@@ -15,8 +15,7 @@ interface ApiService {
     @GET("/api/recruit/nearby")
     suspend fun getNearbyRecruits(
         @Query("lat") lat: Double,
-        @Query("lng") lng: Double,
-        @Query("radius") radius: Int = 5000
+        @Query("lng") lng: Double
     ): Response<List<Recruit>>
 
     @POST("/api/recruit/accept")
@@ -24,9 +23,7 @@ interface ApiService {
 
     @POST("/api/sos/trigger")
     suspend fun triggerSos(@Body request: SosRequest): Response<Unit>
-}
 
-data class LoginRequest(
-    val userId: String,
-    val role: String
-)
+    @GET("/api/recruit/{id}")
+    suspend fun getRecruitById(@retrofit2.http.Path("id") id: String): Response<Recruit>
+}

@@ -2,41 +2,63 @@ package com.blindrun.app.network
 
 import android.util.Log
 import com.blindrun.app.model.UserLocation
+import com.google.gson.Gson
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
+import okhttp3.*
+import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class WebSocketManager @Inject constructor() {
+class WebSocketManager @Inject constructor(private val client: OkHttpClient) {
+    private var webSocket: WebSocket? = null
     private val _locationFlow = MutableSharedFlow<UserLocation>(extraBufferCapacity = 10)
     val locationFlow: SharedFlow<UserLocation> = _locationFlow
+    private val _notificationFlow = MutableSharedFlow<Map<String, String>>(extraBufferCapacity = 10)
+    val notificationFlow: SharedFlow<Map<String, String>> = _notificationFlow
 
-    private var isConnected = false
-    private var currentSessionId: String? = null
-
-    // 模拟 WebSocket 连接，实际使用时替换为真实的 OkHttp WebSocket
     fun connect(userId: String, sessionId: String) {
-        Log.d("WebSocket", "Connecting to session $sessionId as user $userId")
-        currentSessionId = sessionId
-        isConnected = true
-        // 模拟接收到对方位置（实际应监听服务器推送）
+        val webSocketUrl = "ws://10.62.68.184:8080/ws/location?userId=$userId&sessionId=$sessionId"
+        Log.d("WebSocket", "Connecting to $webSocketUrl")
+        val request = Request.Builder().url(webSocketUrl).build()
+        webSocket = client.newWebSocket(request, object : WebSocketListener() {
+            override fun onMessage(webSocket: WebSocket, text: String) {
+                Log.d("WebSocket", "Received: $text")
+                try {
+                    val json = JSONObject(text)
+                    if (json.has("type")) {
+                        val type = json.getString("type")
+                        val recruitId = json.optString("recruitId")
+                        val notification = mapOf("type" to type, "recruitId" to recruitId)
+                        _notificationFlow.tryEmit(notification)
+                        Log.d("WebSocket", "Emitted notification: $notification")
+                    } else {
+                        val location = Gson().fromJson(text, UserLocation::class.java)
+                        _locationFlow.tryEmit(location)
+                    }
+                } catch (e: Exception) {
+                    Log.e("WebSocket", "Parse error: ${e.message}")
+                }
+            }
+
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                Log.e("WebSocket", "Error: ${t.message}")
+            }
+
+            override fun onOpen(webSocket: WebSocket, response: Response) {
+                Log.d("WebSocket", "Connected")
+            }
+        })
     }
 
-    fun sendLocation(lat: Double, lng: Double) {
-        if (!isConnected) return
-        Log.d("WebSocket", "Send location: $lat, $lng")
-        // 实际 webSocket.send(...)
-        // 这里模拟将位置发送给服务器，服务器再广播给伙伴
-    }
-
-    fun receivePartnerLocation(partnerLocation: UserLocation) {
-        // 供外部模拟调用，实际由 WebSocket 回调触发
-        _locationFlow.tryEmit(partnerLocation)
+    fun sendLocation(location: UserLocation) {
+        val json = Gson().toJson(location)
+        webSocket?.send(json)
     }
 
     fun disconnect() {
-        isConnected = false
-        currentSessionId = null
+        webSocket?.close(1000, null)
+        webSocket = null
     }
 }

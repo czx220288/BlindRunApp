@@ -58,6 +58,7 @@ fun PublishRecruitScreen(
             .create(RouteService::class.java)
     }
 
+    // 状态
     var startLocation by remember { mutableStateOf<Pair<String, LatLng>?>(null) }
     var endLocation by remember { mutableStateOf<Pair<String, LatLng>?>(null) }
     var pickingState by remember { mutableStateOf("start") }
@@ -70,24 +71,27 @@ fun PublishRecruitScreen(
     var startMarker: Marker? by remember { mutableStateOf(null) }
     var endMarker: Marker? by remember { mutableStateOf(null) }
     var routePolyline: Polyline? by remember { mutableStateOf(null) }
-    var myLocationMarker: Marker? by remember { mutableStateOf(null) }  // 蓝色自身标记
-
-    // 搜索相关
+    var myLocationMarker: Marker? by remember { mutableStateOf(null) }
     var searchText by remember { mutableStateOf("") }
     var searchResults by remember { mutableStateOf<List<Address>>(emptyList()) }
     var isSearching by remember { mutableStateOf(false) }
 
+    // 逆地理编码
     suspend fun getAddressFromLatLng(lat: Double, lng: Double): String = withContext(Dispatchers.IO) {
         try {
             val geocoder = Geocoder(context, Locale.CHINA)
             val addresses = geocoder.getFromLocation(lat, lng, 1)
             if (addresses.isNullOrEmpty()) "所选位置" else addresses[0].getAddressLine(0) ?: "所选位置"
-        } catch (e: Exception) { "经度:$lng,纬度:$lat" }
+        } catch (e: Exception) {
+            "经度:$lng,纬度:$lat"
+        }
     }
 
+    // 解码 polyline
     fun decodePolyline(polylineStr: String): List<LatLng> {
         val points = mutableListOf<LatLng>()
-        polylineStr.split(";").forEach { pair ->
+        val pairs = polylineStr.split(";")
+        for (pair in pairs) {
             val coords = pair.split(",")
             if (coords.size == 2) {
                 val lng = coords[0].toDoubleOrNull()
@@ -98,6 +102,7 @@ fun PublishRecruitScreen(
         return points
     }
 
+    // 规划路线
     suspend fun calculateRoute() {
         if (startLocation == null || endLocation == null) return
         isCalculating = true
@@ -109,9 +114,9 @@ fun PublishRecruitScreen(
                 val path = response.body()?.route?.paths?.firstOrNull()
                 if (path != null && path.distance > 0) {
                     routeDistance = path.distance
-                    routePolyline?.remove()
                     path.steps?.firstOrNull()?.polyline?.let { polylineStr ->
                         val points = decodePolyline(polylineStr)
+                        routePolyline?.remove()
                         routePolyline = aMap?.addPolyline(
                             PolylineOptions().addAll(points).color(0xFF2196F3.toInt()).width(12f)
                         )
@@ -135,29 +140,7 @@ fun PublishRecruitScreen(
         }
     }
 
-    // 设置起点（唯一）
-    fun setStartPoint(latLng: LatLng, address: String) {
-        startMarker?.remove()
-        startMarker = aMap?.addMarker(
-            MarkerOptions().position(latLng).title(address)
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN))
-        )
-        startLocation = Pair(address, latLng)
-        ttsHelper.speak("起点已设置")
-    }
-
-    // 设置终点（唯一）
-    fun setEndPoint(latLng: LatLng, address: String) {
-        endMarker?.remove()
-        endMarker = aMap?.addMarker(
-            MarkerOptions().position(latLng).title(address)
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
-        )
-        endLocation = Pair(address, latLng)
-        ttsHelper.speak("终点已设置")
-    }
-
-    // 自动定位并显示蓝色自身标记，同时设为起点（若未设置）
+    // 自动定位并显示蓝点，同时设为起点（如果未设置）
     fun startLocationUpdate() {
         if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
             != PackageManager.PERMISSION_GRANTED) return
@@ -165,7 +148,6 @@ fun PublishRecruitScreen(
         locationClient.setLocationListener { location ->
             if (location != null && location.errorCode == 0) {
                 val latLng = LatLng(location.latitude, location.longitude)
-                // 蓝色自身标记
                 if (myLocationMarker == null) {
                     myLocationMarker = aMap?.addMarker(
                         MarkerOptions().position(latLng).title("我的位置")
@@ -178,7 +160,13 @@ fun PublishRecruitScreen(
                 if (startLocation == null) {
                     scope.launch {
                         val address = getAddressFromLatLng(latLng.latitude, latLng.longitude)
-                        setStartPoint(latLng, address)
+                        startMarker?.remove()
+                        startMarker = aMap?.addMarker(
+                            MarkerOptions().position(latLng).title(address)
+                                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN))
+                        )
+                        startLocation = Pair(address, latLng)
+                        ttsHelper.speak("起点已设为当前定位：$address")
                     }
                 }
                 locationClient.stopLocation()
@@ -197,7 +185,9 @@ fun PublishRecruitScreen(
                 try {
                     val geocoder = Geocoder(context, Locale.CHINA)
                     geocoder.getFromLocationName(query, 10) ?: emptyList()
-                } catch (e: IOException) { emptyList() }
+                } catch (e: IOException) {
+                    emptyList()
+                }
             }
             isSearching = false
             searchResults = results
@@ -207,9 +197,21 @@ fun PublishRecruitScreen(
                 aMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15f))
                 val addr = first.getAddressLine(0) ?: query
                 if (pickingState == "start") {
-                    setStartPoint(latLng, addr)
+                    startMarker?.remove()
+                    startMarker = aMap?.addMarker(
+                        MarkerOptions().position(latLng).title(addr)
+                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN))
+                    )
+                    startLocation = Pair(addr, latLng)
+                    ttsHelper.speak("起点已设为 $addr")
                 } else {
-                    setEndPoint(latLng, addr)
+                    endMarker?.remove()
+                    endMarker = aMap?.addMarker(
+                        MarkerOptions().position(latLng).title(addr)
+                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
+                    )
+                    endLocation = Pair(addr, latLng)
+                    ttsHelper.speak("终点已设为 $addr")
                 }
                 if (startLocation != null && endLocation != null) calculateRoute()
             } else {
@@ -224,16 +226,27 @@ fun PublishRecruitScreen(
             scope.launch {
                 val address = getAddressFromLatLng(latLng.latitude, latLng.longitude)
                 if (pickingState == "start") {
-                    setStartPoint(latLng, address)
+                    startMarker?.remove()
+                    startMarker = aMap?.addMarker(
+                        MarkerOptions().position(latLng).title(address)
+                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN))
+                    )
+                    startLocation = Pair(address, latLng)
+                    ttsHelper.speak("起点已设置")
                 } else {
-                    setEndPoint(latLng, address)
+                    endMarker?.remove()
+                    endMarker = aMap?.addMarker(
+                        MarkerOptions().position(latLng).title(address)
+                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
+                    )
+                    endLocation = Pair(address, latLng)
+                    ttsHelper.speak("终点已设置")
                 }
                 if (startLocation != null && endLocation != null) calculateRoute()
             }
         }
     }
 
-    // 权限请求
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -254,7 +267,7 @@ fun PublishRecruitScreen(
         } else {
             permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION))
         }
-        ttsHelper.speak("发布招募页面，请切换状态设置起点或终点，长按地图或搜索选择位置")
+        ttsHelper.speak("发布招募页面，请选择起点和终点")
     }
 
     LaunchedEffect(startLocation, endLocation) {
@@ -262,35 +275,55 @@ fun PublishRecruitScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
+        // 顶部工具栏
         Surface(modifier = Modifier.fillMaxWidth(), tonalElevation = 4.dp) {
             Column {
                 Row(modifier = Modifier.padding(12.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                     Button(
                         onClick = { pickingState = "start" },
-                        colors = if (pickingState == "start") ButtonDefaults.buttonColors() else ButtonDefaults.outlinedButtonColors()
-                    ) { Text(if (pickingState == "start") "● 正在选起点" else "○ 选起点") }
+                        colors = if (pickingState == "start") ButtonDefaults.buttonColors()
+                        else ButtonDefaults.outlinedButtonColors()
+                    ) {
+                        Text(if (pickingState == "start") "● 正在选起点" else "○ 选起点")
+                    }
                     Button(
                         onClick = { pickingState = "end" },
-                        colors = if (pickingState == "end") ButtonDefaults.buttonColors() else ButtonDefaults.outlinedButtonColors()
-                    ) { Text(if (pickingState == "end") "● 正在选终点" else "○ 选终点") }
+                        colors = if (pickingState == "end") ButtonDefaults.buttonColors()
+                        else ButtonDefaults.outlinedButtonColors()
+                    ) {
+                        Text(if (pickingState == "end") "● 正在选终点" else "○ 选终点")
+                    }
                 }
                 Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
-                    OutlinedTextField(value = searchText, onValueChange = { searchText = it }, label = { Text("搜索地点") }, modifier = Modifier.weight(1f), singleLine = true)
+                    OutlinedTextField(
+                        value = searchText,
+                        onValueChange = { searchText = it },
+                        label = { Text("搜索地点") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
                     Button(onClick = { searchAddress(searchText) }, enabled = !isSearching) {
-                        if (isSearching) CircularProgressIndicator(modifier = Modifier.size(20.dp)) else Text("搜索")
+                        if (isSearching) CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                        else Text("搜索")
                     }
                 }
                 if (searchResults.isNotEmpty()) {
-                    LazyColumn(modifier = Modifier.height(150.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    LazyColumn(
+                        modifier = Modifier.height(150.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
                         items(searchResults) { address ->
                             val addr = address.getAddressLine(0) ?: "未知地点"
-                            TextButton(onClick = { searchAddress(addr) }, modifier = Modifier.fillMaxWidth()) { Text(addr) }
+                            TextButton(onClick = { searchAddress(addr) }, modifier = Modifier.fillMaxWidth()) {
+                                Text(addr)
+                            }
                         }
                     }
                 }
             }
         }
 
+        // 地图视图
         AndroidView(
             factory = { ctx ->
                 MapView(ctx).apply {
@@ -305,6 +338,7 @@ fun PublishRecruitScreen(
             update = { view -> view.onResume() }
         )
 
+        // 底部信息栏
         Surface(modifier = Modifier.fillMaxWidth(), tonalElevation = 8.dp) {
             Column(modifier = Modifier.padding(16.dp)) {
                 if (startLocation != null) Text("起点: ${startLocation!!.first}")
@@ -312,33 +346,62 @@ fun PublishRecruitScreen(
                 if (routeDistance > 0) Text("路线距离: ${routeDistance}米", color = MaterialTheme.colorScheme.primary)
                 else if (isCalculating) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(value = timeInMinutes.toString(), onValueChange = { timeInMinutes = it.toLongOrNull() ?: 60 }, label = { Text("开始时间（分钟后）") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(
+                    value = timeInMinutes.toString(),
+                    onValueChange = { timeInMinutes = it.toLongOrNull() ?: 60 },
+                    label = { Text("开始时间（分钟后）") },
+                    modifier = Modifier.fillMaxWidth()
+                )
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
                     onClick = {
-                        if (startLocation == null || endLocation == null) { ttsHelper.speak("请先选择起点和终点"); return@Button }
-                        if (routeDistance == 0 && !isCalculating) { ttsHelper.speak("请等待路线规划完成"); return@Button }
+                        if (startLocation == null || endLocation == null) {
+                            ttsHelper.speak("请先选择起点和终点")
+                            return@Button
+                        }
+                        if (routeDistance == 0 && !isCalculating) {
+                            ttsHelper.speak("请等待路线规划完成")
+                            return@Button
+                        }
                         scope.launch {
                             isPublishing = true
                             val recruit = Recruit(
-                                id = UUID.randomUUID().toString(), userId = currentUserId, userName = currentUserName,
+                                id = "",
+                                userId = currentUserId,
+                                userName = currentUserName,
                                 startTime = System.currentTimeMillis() + timeInMinutes * 60 * 1000,
-                                startLocation = startLocation!!.first, startLat = startLocation!!.second.latitude, startLng = startLocation!!.second.longitude,
-                                endLocation = endLocation!!.first, endLat = endLocation!!.second.latitude, endLng = endLocation!!.second.longitude,
-                                distance = routeDistance, status = "active"
+                                startLocation = startLocation!!.first,
+                                startLat = startLocation!!.second.latitude,
+                                startLng = startLocation!!.second.longitude,
+                                endLocation = endLocation!!.first,
+                                endLat = endLocation!!.second.latitude,
+                                endLng = endLocation!!.second.longitude,
+                                distance = routeDistance,
+                                status = "active"
                             )
                             val result = viewModel.publishRecruit(recruit)
                             isPublishing = false
-                            if (result.isSuccess) { ttsHelper.speak("发布成功"); Toast.makeText(context, "发布成功", Toast.LENGTH_SHORT).show(); onPublishSuccess() }
-                            else { ttsHelper.speak("发布失败"); Toast.makeText(context, "发布失败", Toast.LENGTH_SHORT).show() }
+                            if (result.isSuccess) {
+                                ttsHelper.speak("发布成功")
+                                Toast.makeText(context, "发布成功", Toast.LENGTH_SHORT).show()
+                                onPublishSuccess()
+                            } else {
+                                val errorMsg = result.exceptionOrNull()?.message ?: "发布失败"
+                                ttsHelper.speak("发布失败")
+                                Toast.makeText(context, "发布失败: $errorMsg", Toast.LENGTH_SHORT).show()
+                            }
                         }
                     },
                     enabled = startLocation != null && endLocation != null && routeDistance > 0 && !isPublishing,
                     modifier = Modifier.fillMaxWidth()
-                ) { if (isPublishing) CircularProgressIndicator(modifier = Modifier.size(24.dp)) else Text("发布") }
+                ) {
+                    if (isPublishing) CircularProgressIndicator(modifier = Modifier.size(24.dp)) else Text("发布")
+                }
             }
         }
     }
 
-    DisposableEffect(Unit) { onDispose { mapView?.onDestroy() } }
+    DisposableEffect(Unit) {
+        onDispose { mapView?.onDestroy() }
+    }
 }

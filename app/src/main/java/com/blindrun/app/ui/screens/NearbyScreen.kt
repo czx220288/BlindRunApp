@@ -13,6 +13,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.blindrun.app.model.Recruit
 import com.blindrun.app.tts.TtsHelper
 import com.blindrun.app.viewmodel.NearbyViewModel
+import kotlinx.coroutines.delay
 import java.util.Date
 
 @Composable
@@ -28,14 +29,15 @@ fun NearbyScreen(
 
     LaunchedEffect(Unit) {
         ttsHelper.speak("附近招募列表")
-        viewModel.loadNearbyRecruits()
+        while (true) {
+            viewModel.loadNearbyRecruits()
+            delay(3000)
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
         when {
-            isLoading -> {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            }
+            isLoading && recruits.isEmpty() -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             error != null -> {
                 Column(
                     modifier = Modifier.align(Alignment.Center),
@@ -43,19 +45,15 @@ fun NearbyScreen(
                 ) {
                     Text("加载失败: $error")
                     Spacer(modifier = Modifier.height(8.dp))
-                    Button(onClick = { viewModel.loadNearbyRecruits() }) {
-                        Text("重试")
-                    }
+                    Button(onClick = { viewModel.loadNearbyRecruits() }) { Text("重试") }
                 }
             }
-            recruits.isEmpty() -> {
-                Text("暂无附近招募", modifier = Modifier.align(Alignment.Center))
-            }
+            recruits.isEmpty() -> Text("暂无附近招募", modifier = Modifier.align(Alignment.Center))
             else -> {
                 LazyColumn {
                     items(recruits) { recruit ->
                         RecruitCard(recruit = recruit, onAccept = {
-                            viewModel.acceptRecruit(recruit) { success ->
+                            viewModel.acceptRecruit(recruit) { success, session ->
                                 if (success) {
                                     ttsHelper.speak("您已接单成功，即将进入跑步页面")
                                     onAcceptClick(recruit)
@@ -73,11 +71,7 @@ fun NearbyScreen(
 
 @Composable
 fun RecruitCard(recruit: Recruit, onAccept: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp)
-    ) {
+    Card(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("盲人: ${recruit.userName}", style = MaterialTheme.typography.titleMedium)
             Text("时间: ${Date(recruit.startTime).toLocaleString()}")
@@ -85,9 +79,7 @@ fun RecruitCard(recruit: Recruit, onAccept: () -> Unit) {
             Text("终点: ${recruit.endLocation}")
             Text("距离: ${recruit.distance}米")
             Spacer(modifier = Modifier.height(8.dp))
-            Button(onClick = onAccept) {
-                Text("接单")
-            }
+            Button(onClick = onAccept) { Text("接单") }
         }
     }
 }

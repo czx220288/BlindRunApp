@@ -1,8 +1,6 @@
 package com.blindrun.app.di
 
 import com.blindrun.app.network.ApiService
-import com.blindrun.app.network.MockApiInterceptor
-import com.blindrun.app.service.RouteService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -18,6 +16,9 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
+    // 您的电脑局域网 IP（从 ipconfig 获取的以太网 IPv4 地址）
+    private const val BASE_URL = "http://10.62.68.184:8080/"
+
     @Provides
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
@@ -26,9 +27,9 @@ object NetworkModule {
         }
         return OkHttpClient.Builder()
             .addInterceptor(logging)
-            .addInterceptor(MockApiInterceptor())
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
             .build()
     }
 
@@ -36,21 +37,10 @@ object NetworkModule {
     @Singleton
     fun provideApiService(client: OkHttpClient): ApiService {
         val retrofit = Retrofit.Builder()
-            .baseUrl("https://mock.api.com/")
+            .baseUrl(BASE_URL)
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
         return retrofit.create(ApiService::class.java)
-    }
-
-    @Provides
-    @Singleton
-    fun provideRouteService(client: OkHttpClient): RouteService {
-        val retrofit = Retrofit.Builder()
-            .baseUrl("https://restapi.amap.com/")
-            .client(client)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-        return retrofit.create(RouteService::class.java)
     }
 }

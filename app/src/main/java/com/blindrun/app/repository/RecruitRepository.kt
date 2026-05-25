@@ -51,4 +51,18 @@ class RecruitRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    // 新增：根据 ID 获取招募
+    suspend fun getRecruitById(id: String): Result<Recruit> {
+        return try {
+            val response = apiService.getRecruitById(id)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception("招募不存在"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

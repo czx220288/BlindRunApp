@@ -2,6 +2,7 @@ package com.blindrun.app.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.blindrun.app.model.MatchSession
 import com.blindrun.app.model.Recruit
 import com.blindrun.app.repository.RecruitRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -38,10 +39,14 @@ class NearbyViewModel @Inject constructor(
         }
     }
 
-    fun acceptRecruit(recruit: Recruit, onResult: (Boolean) -> Unit = {}) {
+    fun acceptRecruit(recruit: Recruit, onResult: (Boolean, MatchSession?) -> Unit) {
         viewModelScope.launch {
             val result = repository.acceptRecruit(recruit.id, "companion_${System.currentTimeMillis()}")
-            onResult(result.isSuccess)
+            if (result.isSuccess) {
+                onResult(true, result.getOrNull())
+            } else {
+                onResult(false, null)
+            }
         }
     }
 }
