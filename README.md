@@ -295,6 +295,12 @@ mvn spring-boot:run
 * SOS 求助页面
 
 ---
+## 📱 APK 下载
+
+[点击下载调试版 APK](./apk/app-debug.apk)
+
+
+---
 
 # 🤝 贡献指南
 
