@@ -1,11 +1,9 @@
-import org.gradle.api.initialization.resolve.RepositoriesMode
-
 pluginManagement {
     repositories {
-
-        maven(url = "https://maven.aliyun.com/repository/gradle-plugin")
-        maven(url = "https://maven.aliyun.com/repository/public")
-
+        // ✅ 添加阿里云镜像源
+        maven { url = uri("https://maven.aliyun.com/repository/public") }
+        maven { url = uri("https://maven.aliyun.com/repository/google") }
+        maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }
         google()
         mavenCentral()
         gradlePluginPortal()
@@ -13,20 +11,17 @@ pluginManagement {
 }
 
 dependencyResolutionManagement {
-
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-
+    repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
     repositories {
-
+        // ✅ 添加阿里云镜像源
+        maven { url = uri("https://maven.aliyun.com/repository/public") }
+        maven { url = uri("https://maven.aliyun.com/repository/google") }
+        maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }
+        maven { url = uri("https://repo.jianansoft.com/repository/public") }
         google()
         mavenCentral()
-
-        maven(url = "https://maven.aliyun.com/repository/google")
-        maven(url = "https://maven.aliyun.com/repository/public")
-        maven(url = "https://maven.aliyun.com/repository/central")
     }
 }
 
 rootProject.name = "BlindRunApp"
-
 include(":app")

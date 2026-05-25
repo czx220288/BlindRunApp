@@ -1,4 +1,0 @@
-package com.blindrun.app
-
-class MainActivity {
-}

@@ -1,24 +1,10 @@
-# Android Studio
 *.iml
-.idea/
-.gradle/
-local.properties
-
-# Build output
-build/
-*/build/
-
-# Android
-captures/
-.externalNativeBuild/
-.cxx/
-
-# Kotlin/Java
-*.class
-
-# Logs
-*.log
-
-# OS files
+.gradle
+/local.properties
+/.idea
 .DS_Store
-Thumbs.db
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
