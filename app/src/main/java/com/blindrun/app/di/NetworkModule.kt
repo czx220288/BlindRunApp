@@ -17,7 +17,7 @@ import javax.inject.Singleton
 object NetworkModule {
 
     // 您的电脑局域网 IP（从 ipconfig 获取的以太网 IPv4 地址）
-    private const val BASE_URL = "http://10.62.68.184:8080/"
+    private const val BASE_URL = "http://10.63.142.102:8080/"
 
     @Provides
     @Singleton

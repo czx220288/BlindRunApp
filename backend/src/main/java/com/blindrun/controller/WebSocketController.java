@@ -94,6 +94,120 @@ public class WebSocketController extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * 通知盲人用户有人接单
+     * @param blindUserId 盲人用户ID
+     * @param sessionId 匹配会话ID
+     */
+    public void notifyMatchAccepted(String blindUserId, String sessionId) {
+        WebSocketSession blindSession = locationStorage.getUserSession(blindUserId);
+        if (blindSession != null && blindSession.isOpen()) {
+            try {
+                Map<String, String> message = new HashMap<>();
+                message.put("type", "match_accepted");
+                message.put("sessionId", sessionId);
+                String json = objectMapper.writeValueAsString(message);
+                blindSession.sendMessage(new TextMessage(json));
+                System.out.println("Sent match_accepted to blind user: " + blindUserId);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    /**
+     * 通知订单被取消
+     * @param blindUserId 盲人用户ID
+     * @param sessionId 匹配会话ID
+     */
+    public void notifyMatchCancelled(String blindUserId, String sessionId) {
+        WebSocketSession blindSession = locationStorage.getUserSession(blindUserId);
+        if (blindSession != null && blindSession.isOpen()) {
+            try {
+                Map<String, String> message = new HashMap<>();
+                message.put("type", "match_cancelled");
+                message.put("sessionId", sessionId);
+                String json = objectMapper.writeValueAsString(message);
+                blindSession.sendMessage(new TextMessage(json));
+                System.out.println("Sent match_cancelled to blind user: " + blindUserId);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    /**
+     * 通知订单已完成
+     * @param userId 用户ID
+     * @param sessionId 匹配会话ID
+     */
+    public void notifyMatchFinished(String userId, String sessionId) {
+        WebSocketSession userSession = locationStorage.getUserSession(userId);
+        if (userSession != null && userSession.isOpen()) {
+            try {
+                Map<String, String> message = new HashMap<>();
+                message.put("type", "match_finished");
+                message.put("sessionId", sessionId);
+                String json = objectMapper.writeValueAsString(message);
+                userSession.sendMessage(new TextMessage(json));
+                System.out.println("Sent match_finished to user: " + userId);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } else {
+            System.out.println("No WebSocket session found for user: " + userId);
+        }
+    }
+
+    /**
+     * 通知订单状态已更新（用于刷新确认状态）
+     * @param userId 用户ID
+     * @param sessionId 匹配会话ID
+     */
+    public void notifyMatchStatusUpdated(String userId, String sessionId) {
+        WebSocketSession userSession = locationStorage.getUserSession(userId);
+        if (userSession != null && userSession.isOpen()) {
+            try {
+                Map<String, String> message = new HashMap<>();
+                message.put("type", "match_status_updated");
+                message.put("sessionId", sessionId);
+                String json = objectMapper.writeValueAsString(message);
+                userSession.sendMessage(new TextMessage(json));
+                System.out.println("Sent match_status_updated to user: " + userId);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } else {
+            System.out.println("No WebSocket session found for user: " + userId);
+        }
+    }
+
+    /**
+     * 发送SOS紧急求助通知
+     * @param sosUserId 发出SOS的用户ID
+     * @param latitude 纬度
+     * @param longitude 经度
+     */
+    public void notifySosTriggered(String sosUserId, double latitude, double longitude) {
+        WebSocketSession sosSession = locationStorage.getUserSession(sosUserId);
+        if (sosSession != null && sosSession.isOpen()) {
+            try {
+                Map<String, Object> message = new HashMap<>();
+                message.put("type", "sos_triggered");
+                message.put("userId", sosUserId);
+                message.put("latitude", latitude);
+                message.put("longitude", longitude);
+                String json = objectMapper.writeValueAsString(message);
+                sosSession.sendMessage(new TextMessage(json));
+                System.out.println("Sent sos_triggered to user: " + sosUserId);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } else {
+            System.out.println("No WebSocket session found for user: " + sosUserId);
+        }
+    }
+
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
         // 从 sessions 中移除

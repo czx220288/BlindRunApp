@@ -1,20 +1,52 @@
 package com.blindrun.model;
 
-public class Recruit {
-    private String id;
-    private String userId;
-    private String userName;
-    private long startTime;
-    private String startLocation;
-    private double startLat;
-    private double startLng;
-    private String endLocation;
-    private double endLat;
-    private double endLng;
-    private int distance;
-    private String status;
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
 
-    public Recruit() {}
+@Entity
+@Table(name = "recruits")
+public class Recruit {
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private String id;
+    
+    @Column(name = "user_id")
+    private String userId;
+    
+    @Column(name = "user_name")
+    private String userName;
+    
+    @Column(name = "start_time")
+    private long startTime;
+    
+    @Column(name = "start_location")
+    private String startLocation;
+    
+    @Column(name = "start_lat")
+    private double startLat;
+    
+    @Column(name = "start_lng")
+    private double startLng;
+    
+    @Column(name = "end_location")
+    private String endLocation;
+    
+    @Column(name = "end_lat")
+    private double endLat;
+    
+    @Column(name = "end_lng")
+    private double endLng;
+    
+    private int distance;
+    
+    private String status;
+    
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
+    public Recruit() {
+        this.createdAt = LocalDateTime.now();
+    }
 
     // Getters and Setters
     public String getId() { return id; }
@@ -41,4 +73,6 @@ public class Recruit {
     public void setDistance(int distance) { this.distance = distance; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

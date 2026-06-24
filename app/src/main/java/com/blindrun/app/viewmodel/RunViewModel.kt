@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.blindrun.app.location.LocationService
 import com.blindrun.app.model.Recruit
 import com.blindrun.app.model.UserLocation
+import com.blindrun.app.network.ApiService
 import com.blindrun.app.network.WebSocketManager
 import com.blindrun.app.repository.RecruitRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,7 +20,8 @@ import javax.inject.Inject
 class RunViewModel @Inject constructor(
     private val locationService: LocationService,
     private val webSocketManager: WebSocketManager,
-    private val recruitRepository: RecruitRepository
+    private val recruitRepository: RecruitRepository,
+    val apiService: ApiService
 ) : ViewModel() {
 
     private val _recruit = MutableStateFlow<Recruit?>(null)
@@ -33,6 +35,8 @@ class RunViewModel @Inject constructor(
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
+
+    val notificationFlow = webSocketManager.notificationFlow
 
     fun loadRecruit(recruitId: String) {
         viewModelScope.launch {

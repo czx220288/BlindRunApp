@@ -16,7 +16,7 @@ import com.blindrun.app.viewmodel.AuthViewModel
 fun LoginScreen(
     onLoginSuccess: (userId: String, role: String) -> Unit,
     onNavigateToRegister: () -> Unit,
-    viewModel: AuthViewModel = hiltViewModel()  // 改为 hiltViewModel
+    viewModel: AuthViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val ttsHelper = remember { TtsHelper(context) }
@@ -24,9 +24,27 @@ fun LoginScreen(
     var userId by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isLoggingIn by remember { mutableStateOf(false) }
+
+    val loginResult by viewModel.loginResult.collectAsState()
 
     LaunchedEffect(Unit) {
         ttsHelper.speak("欢迎使用助盲跑，请选择您的角色并输入用户ID和密码，或注册新账号")
+    }
+
+    LaunchedEffect(loginResult) {
+        if (loginResult != null) {
+            isLoggingIn = false
+            if (loginResult == true) {
+                ttsHelper.speak("登录成功，欢迎您")
+                onLoginSuccess(userId, selectedRole)
+                viewModel.resetLoginResult()
+            } else {
+                ttsHelper.speak("登录失败，请检查用户ID或密码")
+                errorMessage = "用户ID或密码错误"
+                viewModel.resetLoginResult()
+            }
+        }
     }
 
     Column(
@@ -82,18 +100,17 @@ fun LoginScreen(
                     errorMessage = "请输入完整信息"
                     return@Button
                 }
-                val success = viewModel.login(userId, password, selectedRole)
-                if (success) {
-                    ttsHelper.speak("登录成功，欢迎您")
-                    onLoginSuccess(userId, selectedRole)
-                } else {
-                    ttsHelper.speak("登录失败，请检查用户ID或密码")
-                    errorMessage = "用户ID或密码错误"
-                }
+                isLoggingIn = true
+                viewModel.login(userId, password, selectedRole)
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoggingIn
         ) {
-            Text("登录")
+            if (isLoggingIn) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+            } else {
+                Text("登录")
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))

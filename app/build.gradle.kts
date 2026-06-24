@@ -3,7 +3,7 @@ import java.util.Properties
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("kotlin-kapt")
+    id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
 }
 
@@ -74,13 +74,14 @@ dependencies {
     implementation("androidx.compose.ui:ui:$compose_version")
     implementation("androidx.compose.ui:ui-tooling-preview:$compose_version")
     implementation("androidx.compose.material3:material3:1.1.2")
+    implementation("androidx.compose.material:material-icons-extended:1.5.4")
 
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.7.5")
 
-    // Hilt
+    // Hilt - 使用 KSP 替代 kapt
     implementation("com.google.dagger:hilt-android:$hilt_version")
-    kapt("com.google.dagger:hilt-compiler:$hilt_version")
+    ksp("com.google.dagger:hilt-compiler:$hilt_version")
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
 
     // Retrofit + OkHttp
@@ -96,6 +97,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 }
 
-kapt {
-    correctErrorTypes = true
+// KSP 配置（替代 kapt）
+ksp {
+    arg("dagger.fastInit", "ENABLED")
 }

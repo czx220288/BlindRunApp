@@ -22,6 +22,7 @@ import androidx.core.app.ActivityCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.amap.api.location.AMapLocationClient
+import com.amap.api.location.AMapLocationClientOption
 import com.amap.api.maps.AMap
 import com.amap.api.maps.CameraUpdateFactory
 import com.amap.api.maps.MapView
@@ -35,6 +36,7 @@ import com.blindrun.app.viewmodel.PublishViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.io.IOException
@@ -102,6 +104,17 @@ fun PublishRecruitScreen(
         return points
     }
 
+    // 计算直线距离（备用方案）
+    fun calculateStraightLineDistance(start: LatLng, end: LatLng): Int {
+        val results = FloatArray(1)
+        android.location.Location.distanceBetween(
+            start.latitude, start.longitude,
+            end.latitude, end.longitude,
+            results
+        )
+        return results[0].toInt()
+    }
+
     // 规划路线
     suspend fun calculateRoute() {
         if (startLocation == null || endLocation == null) return
@@ -109,32 +122,104 @@ fun PublishRecruitScreen(
         try {
             val origin = "${startLocation!!.second.longitude},${startLocation!!.second.latitude}"
             val dest = "${endLocation!!.second.longitude},${endLocation!!.second.latitude}"
+            
+            android.util.Log.d("RouteDebug", "开始规划路线: $origin -> $dest")
+            
             val response = routeService.getWalkingRoute(origin, dest, BuildConfig.AMAP_WEB_KEY)
-            if (response.isSuccessful && response.body()?.status == "1") {
-                val path = response.body()?.route?.paths?.firstOrNull()
-                if (path != null && path.distance > 0) {
-                    routeDistance = path.distance
-                    path.steps?.firstOrNull()?.polyline?.let { polylineStr ->
-                        val points = decodePolyline(polylineStr)
-                        routePolyline?.remove()
-                        routePolyline = aMap?.addPolyline(
-                            PolylineOptions().addAll(points).color(0xFF2196F3.toInt()).width(12f)
-                        )
+            
+            android.util.Log.d("RouteDebug", "响应码: ${response.code()}, 成功: ${response.isSuccessful}")
+            
+            var routePlanned = false
+            
+            if (response.isSuccessful) {
+                val body = response.body()
+                android.util.Log.d("RouteDebug", "响应体: status=${body?.status}, info=${body?.info}")
+                
+                if (body?.status == "1") {
+                    val path = body.route?.paths?.firstOrNull()
+                    android.util.Log.d("RouteDebug", "路径: distance=${path?.distance}, steps=${path?.steps?.size}")
+                    
+                    if (path != null && path.distance > 0) {
+                        routeDistance = path.distance
+                        
+                        // 尝试绘制完整路线（所有步骤）
+                        val allPoints = mutableListOf<LatLng>()
+                        path.steps?.forEach { step ->
+                            step.polyline?.let { polylineStr ->
+                                allPoints.addAll(decodePolyline(polylineStr))
+                            }
+                        }
+                        
+                        android.util.Log.d("RouteDebug", "解码点数: ${allPoints.size}")
+                        
+                        if (allPoints.isNotEmpty()) {
+                            routePolyline?.remove()
+                            routePolyline = aMap?.addPolyline(
+                                PolylineOptions().addAll(allPoints).color(0xFF2196F3.toInt()).width(12f)
+                            )
+                            ttsHelper.speak("路线规划成功，距离 ${routeDistance}米")
+                            routePlanned = true
+                        } else {
+                            android.util.Log.e("RouteDebug", "解码点数为0")
+                        }
+                    } else {
+                        android.util.Log.e("RouteDebug", "路径距离为0或path为空")
                     }
-                    ttsHelper.speak("路线规划成功，距离 ${routeDistance}米")
-                    val bounds = LatLngBounds.builder()
-                        .include(startLocation!!.second)
-                        .include(endLocation!!.second)
-                        .build()
-                    aMap?.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 100))
                 } else {
-                    ttsHelper.speak("未能规划路线")
+                    android.util.Log.e("RouteDebug", "API返回失败: ${body?.info}")
                 }
             } else {
-                ttsHelper.speak("路线规划失败")
+                android.util.Log.e("RouteDebug", "HTTP请求失败: ${response.code()}")
             }
+            
+            // 如果路线规划失败，使用直线距离
+            if (!routePlanned) {
+                android.util.Log.d("RouteDebug", "使用直线距离备选方案")
+                val straightDistance = calculateStraightLineDistance(
+                    startLocation!!.second,
+                    endLocation!!.second
+                )
+                routeDistance = straightDistance
+                
+                // 绘制直线
+                routePolyline?.remove()
+                routePolyline = aMap?.addPolyline(
+                    PolylineOptions().add(
+                        startLocation!!.second,
+                        endLocation!!.second
+                    ).color(0xFFFF9800.toInt()).width(8f)
+                )
+                
+                ttsHelper.speak("使用直线距离，${routeDistance}米")
+            }
+            
+            // 调整地图视角
+            val bounds = LatLngBounds.builder()
+                .include(startLocation!!.second)
+                .include(endLocation!!.second)
+                .build()
+            aMap?.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 100))
+            
         } catch (e: Exception) {
-            ttsHelper.speak("网络错误，无法规划路线")
+            e.printStackTrace()
+            android.util.Log.e("RouteDebug", "异常: ${e.message}", e)
+            
+            // 异常时也使用直线距离
+            val straightDistance = calculateStraightLineDistance(
+                startLocation!!.second,
+                endLocation!!.second
+            )
+            routeDistance = straightDistance
+            
+            routePolyline?.remove()
+            routePolyline = aMap?.addPolyline(
+                PolylineOptions().add(
+                    startLocation!!.second,
+                    endLocation!!.second
+                ).color(0xFFFF9800.toInt()).width(8f)
+            )
+            
+            ttsHelper.speak("使用直线距离，${routeDistance}米")
         } finally {
             isCalculating = false
         }
@@ -257,6 +342,66 @@ fun PublishRecruitScreen(
         }
     }
 
+    // 定位我的位置（新增功能）
+    fun locateMyPosition() {
+        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED) {
+            permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION))
+            return
+        }
+        
+        val locationClient = AMapLocationClient(context)
+        val option = AMapLocationClientOption().apply {
+            locationMode = AMapLocationClientOption.AMapLocationMode.Hight_Accuracy
+            isOnceLocation = true
+            isNeedAddress = false
+            httpTimeOut = 5000
+        }
+        locationClient.setLocationOption(option)
+        
+        locationClient.setLocationListener { location ->
+            if (location != null && location.errorCode == 0) {
+                val latLng = LatLng(location.latitude, location.longitude)
+                
+                // 更新我的位置标记
+                if (myLocationMarker == null) {
+                    myLocationMarker = aMap?.addMarker(
+                        MarkerOptions().position(latLng).title("我的位置")
+                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE))
+                    )
+                } else {
+                    myLocationMarker?.position = latLng
+                }
+                
+                // 移动地图到我的位置
+                aMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 16f))
+                
+                // 如果正在选起点且起点未设置，自动设为起点
+                if (pickingState == "start" && startLocation == null) {
+                    scope.launch {
+                        val address = getAddressFromLatLng(latLng.latitude, latLng.longitude)
+                        startMarker?.remove()
+                        startMarker = aMap?.addMarker(
+                            MarkerOptions().position(latLng).title(address)
+                                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN))
+                        )
+                        startLocation = Pair(address, latLng)
+                        ttsHelper.speak("起点已设为当前位置")
+                    }
+                } else {
+                    ttsHelper.speak("已定位到当前位置")
+                }
+                
+                locationClient.stopLocation()
+                locationClient.onDestroy()
+            }
+            
+            locationClient.stopLocation()
+            locationClient.onDestroy()
+        }
+        locationClient.startLocation()
+    }
+
     val currentUserId = authViewModel.currentUserId ?: ""
     val currentUserName = authViewModel.currentUserName ?: "当前用户"
 
@@ -292,6 +437,9 @@ fun PublishRecruitScreen(
                         else ButtonDefaults.outlinedButtonColors()
                     ) {
                         Text(if (pickingState == "end") "● 正在选终点" else "○ 选终点")
+                    }
+                    OutlinedButton(onClick = { locateMyPosition() }) {
+                        Text("📍 我的位置")
                     }
                 }
                 Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
@@ -401,7 +549,10 @@ fun PublishRecruitScreen(
         }
     }
 
+    // 清理资源
     DisposableEffect(Unit) {
-        onDispose { mapView?.onDestroy() }
+        onDispose {
+            mapView?.onDestroy()
+        }
     }
 }

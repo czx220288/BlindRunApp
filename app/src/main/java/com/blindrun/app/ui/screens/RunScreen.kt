@@ -18,8 +18,12 @@ import com.amap.api.maps.CameraUpdateFactory
 import com.amap.api.maps.MapView
 import com.amap.api.maps.model.*
 import com.amap.api.maps.model.MyLocationStyle
+import com.blindrun.app.model.MatchFinishRequest
+import com.blindrun.app.model.SosRequest
+import com.blindrun.app.network.ApiService
 import com.blindrun.app.tts.TtsHelper
 import com.blindrun.app.viewmodel.RunViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun RunScreen(
@@ -29,6 +33,7 @@ fun RunScreen(
     viewModel: RunViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val ttsHelper = remember { TtsHelper(context) }
     val recruit by viewModel.recruit.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -41,18 +46,32 @@ fun RunScreen(
     var routePolyline: Polyline? by remember { mutableStateOf(null) }
     var partnerMarker: Marker? by remember { mutableStateOf(null) }
 
-    // 加载招募详情
     LaunchedEffect(recruitId) {
         viewModel.loadRecruit(recruitId)
     }
 
-    // 启动定位和 WebSocket
     LaunchedEffect(Unit) {
         if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
             == PackageManager.PERMISSION_GRANTED) {
             viewModel.startRun(recruitId, context)
         } else {
             ttsHelper.speak("缺少位置权限，无法共享位置")
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.notificationFlow.collect { notification ->
+            val type = notification["type"]
+            when (type) {
+                "match_cancelled" -> {
+                    ttsHelper.speak("订单已被取消")
+                    onFinish()
+                }
+                "match_finished" -> {
+                    ttsHelper.speak("订单已完成")
+                    onFinish()
+                }
+            }
         }
     }
 
@@ -142,9 +161,47 @@ fun RunScreen(
 
         Button(
             onClick = {
-                ttsHelper.speak("SOS紧急求助，已发送您的位置")
-                viewModel.triggerSos(context)
-                onSosTriggered()
+                scope.launch {
+                    try {
+                        ttsHelper.speak("SOS紧急求助")
+                        
+                        val sessionResponse = viewModel.apiService.getMatchSessionByRecruitId(recruitId)
+                        
+                        if (sessionResponse.isSuccessful && sessionResponse.body() != null) {
+                            val session = sessionResponse.body()!!
+                            
+                            val currentLocation = myLocation
+                            if (currentLocation != null) {
+                                val sosRequest = SosRequest(
+                                    userId = "user_${System.currentTimeMillis()}",
+                                    latitude = currentLocation.latitude,
+                                    longitude = currentLocation.longitude,
+                                    sessionId = session.sessionId,
+                                    recruitId = session.recruitId,
+                                    companionUserId = session.companionUserId,
+                                    blindUserId = session.blindUserId,
+                                    sessionStatus = session.status
+                                )
+                                
+                                val sosResponse = viewModel.apiService.triggerSos(sosRequest)
+                                
+                                if (sosResponse.isSuccessful) {
+                                    ttsHelper.speak("SOS已发送")
+                                    onSosTriggered()
+                                } else {
+                                    ttsHelper.speak("SOS发送失败")
+                                }
+                            } else {
+                                ttsHelper.speak("无法获取位置")
+                            }
+                        } else {
+                            ttsHelper.speak("未找到订单")
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        ttsHelper.speak("SOS发送失败")
+                    }
+                }
             },
             modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
@@ -153,7 +210,38 @@ fun RunScreen(
         }
 
         Button(
-            onClick = onFinish,
+            onClick = {
+                scope.launch {
+                    try {
+                        println("结束陪跑 - recruitId: $recruitId")
+                        val finishRequest = MatchFinishRequest()
+                        finishRequest.sessionId = recruitId
+                        val response = viewModel.apiService.finishMatch(finishRequest)
+                        println("结束陪跑 - 响应码: ${response.code()}")
+                        
+                        when (response.code()) {
+                            200 -> {
+                                ttsHelper.speak("陪跑已结束")
+                                onFinish()
+                            }
+                            400 -> {
+                                ttsHelper.speak("订单已完成或已取消")
+                                onFinish()
+                            }
+                            404 -> {
+                                ttsHelper.speak("未找到订单")
+                            }
+                            else -> {
+                                ttsHelper.speak("结束失败，请重试")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        println("结束陪跑 - 异常: ${e.message}")
+                        ttsHelper.speak("网络错误: ${e.message}")
+                    }
+                }
+            },
             modifier = Modifier.align(Alignment.TopStart).padding(16.dp)
         ) {
             Text("结束陪跑")

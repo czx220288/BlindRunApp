@@ -168,6 +168,7 @@ fun AppNavigation(webSocketManager: WebSocketManager) {
             }
             composable("nearby") {
                 NearbyScreen(
+                    userId = currentUserId,
                     onAcceptClick = { recruit ->
                         navController.navigate("run/${recruit.id}")
                     }
@@ -183,20 +184,21 @@ fun AppNavigation(webSocketManager: WebSocketManager) {
                 val recruitId = backStackEntry.arguments?.getString("recruitId") ?: ""
                 RunScreen(
                     recruitId = recruitId,
-                    onSosTriggered = { navController.navigate("sos") },
+                    onSosTriggered = { },
                     onFinish = { navController.popBackStack() }
                 )
-            }
-            composable("sos") {
-                SosScreen(onBack = { navController.popBackStack() })
             }
             composable("myMatches") {
                 MyMatchesScreen(
                     userId = currentUserId,
-                    role = userRole,
-                    onBack = { navController.popBackStack() }
+                    userRole = userRole,
+                    onBack = { navController.popBackStack() },
+                    onStartMatch = { recruitId ->
+                        navController.navigate("run/$recruitId")
+                    }
                 )
             }
+
         }
     }
 }

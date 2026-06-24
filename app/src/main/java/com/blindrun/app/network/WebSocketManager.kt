@@ -19,7 +19,7 @@ class WebSocketManager @Inject constructor(private val client: OkHttpClient) {
     val notificationFlow: SharedFlow<Map<String, String>> = _notificationFlow
 
     fun connect(userId: String, sessionId: String) {
-        val webSocketUrl = "ws://10.62.68.184:8080/ws/location?userId=$userId&sessionId=$sessionId"
+        val webSocketUrl = "ws://10.63.142.102:8080/ws/location?userId=$userId&sessionId=$sessionId"
         Log.d("WebSocket", "Connecting to $webSocketUrl")
         val request = Request.Builder().url(webSocketUrl).build()
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
@@ -30,7 +30,12 @@ class WebSocketManager @Inject constructor(private val client: OkHttpClient) {
                     if (json.has("type")) {
                         val type = json.getString("type")
                         val recruitId = json.optString("recruitId")
-                        val notification = mapOf("type" to type, "recruitId" to recruitId)
+                        val sessionId = json.optString("sessionId")
+                        val notification = mapOf(
+                            "type" to type,
+                            "recruitId" to recruitId,
+                            "sessionId" to sessionId
+                        )
                         _notificationFlow.tryEmit(notification)
                         Log.d("WebSocket", "Emitted notification: $notification")
                     } else {

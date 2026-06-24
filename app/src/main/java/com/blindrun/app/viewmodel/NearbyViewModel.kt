@@ -39,9 +39,9 @@ class NearbyViewModel @Inject constructor(
         }
     }
 
-    fun acceptRecruit(recruit: Recruit, onResult: (Boolean, MatchSession?) -> Unit) {
+    fun acceptRecruit(recruit: Recruit, companionId: String, onResult: (Boolean, MatchSession?) -> Unit) {
         viewModelScope.launch {
-            val result = repository.acceptRecruit(recruit.id, "companion_${System.currentTimeMillis()}")
+            val result = repository.acceptRecruit(recruit.id, companionId)
             if (result.isSuccess) {
                 onResult(true, result.getOrNull())
             } else {

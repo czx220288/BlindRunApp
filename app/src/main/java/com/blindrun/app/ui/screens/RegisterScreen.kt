@@ -26,9 +26,27 @@ fun RegisterScreen(
     var confirmPassword by remember { mutableStateOf("") }
     var selectedRole by remember { mutableStateOf("blind") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isRegistering by remember { mutableStateOf(false) }
+
+    val registerResult by viewModel.registerResult.collectAsState()
 
     LaunchedEffect(Unit) {
         ttsHelper.speak("注册页面，请输入用户名、用户ID、密码并确认，选择角色")
+    }
+
+    LaunchedEffect(registerResult) {
+        if (registerResult != null) {
+            isRegistering = false
+            if (registerResult == true) {
+                ttsHelper.speak("注册成功，请登录")
+                onRegisterSuccess(userId, selectedRole)
+                viewModel.resetRegisterResult()
+            } else {
+                errorMessage = "用户ID已存在"
+                ttsHelper.speak("用户ID已存在")
+                viewModel.resetRegisterResult()
+            }
+        }
     }
 
     Column(
@@ -43,6 +61,7 @@ fun RegisterScreen(
             value = userName,
             onValueChange = { userName = it; errorMessage = null },
             label = { Text("姓名") },
+            placeholder = { Text("请输入您的用户名") },
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(16.dp))
@@ -50,7 +69,8 @@ fun RegisterScreen(
         OutlinedTextField(
             value = userId,
             onValueChange = { userId = it; errorMessage = null },
-            label = { Text("用户ID (登录用)") },
+            label = { Text("用户ID") },
+            placeholder = { Text("请输入您的用户ID") },
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(16.dp))
@@ -59,6 +79,7 @@ fun RegisterScreen(
             value = password,
             onValueChange = { password = it; errorMessage = null },
             label = { Text("密码") },
+            placeholder = { Text("请输入您的密码") },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
@@ -68,6 +89,7 @@ fun RegisterScreen(
             value = confirmPassword,
             onValueChange = { confirmPassword = it; errorMessage = null },
             label = { Text("确认密码") },
+            placeholder = { Text("请再次输入密码") },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
@@ -97,25 +119,37 @@ fun RegisterScreen(
         Button(
             onClick = {
                 when {
-                    userName.isBlank() -> errorMessage = "请填写姓名"
-                    userId.isBlank() -> errorMessage = "请填写用户ID"
-                    password.isBlank() -> errorMessage = "请填写密码"
-                    password != confirmPassword -> errorMessage = "两次输入的密码不一致"
+                    userName.isBlank() -> {
+                        errorMessage = "请填写用户名"
+                        ttsHelper.speak("请填写用户名")
+                    }
+                    userId.isBlank() -> {
+                        errorMessage = "请填写用户ID"
+                        ttsHelper.speak("请填写用户ID")
+                    }
+                    password.isBlank() -> {
+                        errorMessage = "请填写密码"
+                        ttsHelper.speak("请填写密码")
+                    }
+                    password != confirmPassword -> {
+                        errorMessage = "两次输入的密码不一致"
+                        ttsHelper.speak("两次输入的密码不一致")
+                    }
                     else -> {
-                        val success = viewModel.register(userId, password, selectedRole, userName)
-                        if (success) {
-                            ttsHelper.speak("注册成功，请登录")
-                            onRegisterSuccess(userId, selectedRole)
-                        } else {
-                            errorMessage = "用户ID已存在"
-                            ttsHelper.speak("用户ID已存在")
-                        }
+                        isRegistering = true
+                        ttsHelper.speak("正在提交注册信息")
+                        viewModel.register(userId, password, selectedRole, userName)
                     }
                 }
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isRegistering
         ) {
-            Text("注册")
+            if (isRegistering) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+            } else {
+                Text("注册")
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
