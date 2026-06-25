@@ -327,7 +327,7 @@ mvn spring-boot:run
 
 # 📧 联系方式
 
-作者：陈梓轩
+作者：陈梓轩、李国彬
 
 GitHub：[czx220288](https://github.com/czx220288?utm_source=chatgpt.com)
 
